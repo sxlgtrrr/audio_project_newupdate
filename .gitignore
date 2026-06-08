@@ -1,0 +1,22 @@
+# 数据文件
+data/
+!data/*.py
+
+# 模型权重
+models/
+
+# 输出图片
+logs/*.png
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# 大文件
+*.zip
+*.pdf
+
+# 环境
+myenv/
+.venv/
