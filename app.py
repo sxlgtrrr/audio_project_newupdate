@@ -68,44 +68,34 @@ def index():
 @app.route('/api/analyze', methods=['POST'])
 def analyze():
     try:
-        raw_bytes = request.get_data()
-        if len(raw_bytes) < 1600:
+        wav_bytes = request.get_data()
+        if len(wav_bytes) < 1000:
             return jsonify({'error': '音频太短'}), 400
 
-        audio = np.frombuffer(raw_bytes, dtype=np.float32).copy()
-        if len(audio) == 0:
-            return jsonify({'error': '空音频'}), 400
+        # 保存为临时 WAV 文件，用 librosa 加载（和训练完全一致）
+        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as f:
+            f.write(wav_bytes)
+            wav_path = f.name
 
-        # 获取原始采样率，重采样到 16kHz
-        src_sr = int(request.args.get('sr', 16000))
-        if src_sr != config.SAMPLE_RATE and src_sr > 0:
-            from scipy import signal as scipy_signal
-            audio = scipy_signal.resample(audio, int(len(audio) * config.SAMPLE_RATE / src_sr))
+        import librosa
+        audio, sr = librosa.load(wav_path, sr=config.SAMPLE_RATE, duration=config.DURATION)
+        os.unlink(wav_path)
 
-        # 归一化
+        if len(audio) < 1600:
+            return jsonify({'error': '音频太短'}), 400
+
+        # 归一化（和训练一致）
         peak = np.max(np.abs(audio))
         if peak > 0:
             audio = audio / peak
 
-        # 截断到 5 秒
-        max_len = config.SAMPLE_RATE * 5
-        if len(audio) > max_len:
-            audio = audio[:max_len]
-
-        # 保存临时 WAV 给 Whisper
-        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as f:
-            sf.write(f.name, audio, config.SAMPLE_RATE)
-            wav_path = f.name
-
         # 语音识别
         text = ""
         try:
-            result = asr_model.transcribe(wav_path, language='zh', fp16=False)
+            result = asr_model.transcribe(audio, language='zh', fp16=False)
             text = result['text'].strip()
         except:
             text = "[识别失败]"
-
-        os.unlink(wav_path)
 
         # 情感识别
         audio_tensor = torch.FloatTensor(audio).unsqueeze(0).to(config.DEVICE)
