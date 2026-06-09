@@ -5,315 +5,466 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>语音情感感知助手</title>
 <style>
+  :root {
+    --bg: #0f0f1a;
+    --surface: #1a1a2e;
+    --surface2: #222240;
+    --text: #e0e0e0;
+    --muted: #7777aa;
+    --accent: #e94560;
+    --radius: 16px;
+  }
   * { margin:0; padding:0; box-sizing:border-box; }
   body {
-    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-    min-height: 100vh; color: #eee; display: flex; justify-content: center;
-    align-items: center; padding: 20px;
+    font-family: 'Segoe UI','Microsoft YaHei',sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    overflow: hidden;
   }
-  .container { max-width: 600px; width: 100%; }
-  .title {
-    text-align: center; font-size: 28px; font-weight: bold;
-    margin-bottom: 30px; background: linear-gradient(90deg, #e94560, #0f3460);
+
+  /* === 侧边栏 === */
+  .sidebar {
+    width: 260px; background: var(--surface);
+    border-right: 1px solid rgba(255,255,255,0.06);
+    display: flex; flex-direction: column;
+    flex-shrink: 0;
+  }
+  .sidebar-header {
+    padding: 24px 20px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .sidebar-header h2 {
+    font-size: 18px; font-weight: 700;
+    background: linear-gradient(135deg, #e94560, #f39c12);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   }
-  .card {
-    background: rgba(255,255,255,0.05); backdrop-filter: blur(10px);
-    border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;
-    padding: 24px; margin-bottom: 16px;
+  .sidebar-header p { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  .emotion-stats {
+    padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .emotion-stats h3 { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+  .stat-row {
+    display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px;
+  }
+  .stat-row .emoji { width: 24px; text-align: center; }
+  .stat-row .name { flex: 1; }
+  .stat-row .count { color: var(--muted); }
+  .stat-bar {
+    flex: 1; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px;
+    overflow: hidden; margin: 0 8px;
+  }
+  .stat-bar div { height: 100%; border-radius: 2px; transition: width 0.5s; }
+
+  .history-list {
+    flex: 1; overflow-y: auto; padding: 8px 12px;
+  }
+  .history-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; border-radius: 10px;
+    margin-bottom: 4px; cursor: pointer; transition: background 0.2s;
+  }
+  .history-item:hover { background: rgba(255,255,255,0.05); }
+  .history-item .h-emoji { font-size: 22px; }
+  .history-item .h-time { font-size: 11px; color: var(--muted); }
+  .history-item .h-text {
+    font-size: 13px; flex: 1; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
   }
 
-  /* 录音按钮 */
-  .record-area { text-align: center; }
-  .record-btn {
-    width: 80px; height: 80px; border-radius: 50%; border: 3px solid #e94560;
-    background: transparent; cursor: pointer; transition: all 0.3s;
-    display: inline-flex; align-items: center; justify-content: center;
+  /* === 主区域 === */
+  .main {
+    flex: 1; display: flex; flex-direction: column;
+    min-width: 0;
   }
-  .record-btn:hover { background: rgba(233,69,96,0.1); }
-  .record-btn .mic { font-size: 36px; }
-  .record-btn.recording {
-    border-color: #ff0000; background: rgba(255,0,0,0.15);
-    animation: pulse 1.5s infinite;
-  }
-  @keyframes pulse {
-    0%,100% { box-shadow: 0 0 0 0 rgba(255,0,0,0.4); }
-    50% { box-shadow: 0 0 0 16px rgba(255,0,0,0); }
-  }
-  .record-hint { margin-top: 12px; font-size: 14px; color: #888; }
 
-  /* 录音计时 */
-  .timer {
-    font-size: 20px; font-weight: bold; color: #e94560; margin-top: 8px;
+  /* 顶部栏 */
+  .topbar {
+    padding: 16px 28px;
+    background: var(--surface);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .topbar h1 { font-size: 20px; font-weight: 600; }
+  .topbar .badge {
+    font-size: 12px; padding: 4px 10px; border-radius: 12px;
+    background: rgba(46,204,113,0.15); color: #2ecc71;
+  }
+
+  /* 聊天区 */
+  .chat {
+    flex: 1; overflow-y: auto; padding: 24px 28px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+
+  .msg {
+    display: flex; gap: 12px; max-width: 80%; animation: slideIn 0.3s ease;
+  }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .msg.assistant { align-self: flex-start; }
+  @keyframes slideIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+  .msg-avatar {
+    width: 38px; height: 38px; border-radius: 50%; display: flex;
+    align-items: center; justify-content: center; font-size: 18px;
+    flex-shrink: 0;
+  }
+  .msg.user .msg-avatar { background: rgba(233,69,96,0.2); }
+  .msg.assistant .msg-avatar { background: rgba(52,152,219,0.2); }
+
+  .msg-content {
+    padding: 12px 16px; border-radius: 16px; line-height: 1.5;
+  }
+  .msg.user .msg-content {
+    background: linear-gradient(135deg, var(--accent), #c0392b);
+    border-bottom-right-radius: 4px;
+  }
+  .msg.assistant .msg-content {
+    background: var(--surface2);
+    border-bottom-left-radius: 4px;
+  }
+  .msg .msg-text { font-size: 14px; }
+  .msg .msg-meta {
+    font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 4px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .emotion-tag {
+    display: inline-block; padding: 2px 8px; border-radius: 8px;
+    font-size: 11px; font-weight: 600;
+  }
+
+  /* 录音控制区 */
+  .recorder {
+    padding: 16px 28px 20px;
+    background: var(--surface);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+
+  .waveform-canvas {
+    width: 100%; height: 56px; border-radius: 12px;
+    background: rgba(255,255,255,0.03);
     display: none;
   }
-  .timer.show { display: block; }
+  .waveform-canvas.active { display: block; }
 
-  /* 加载动画 */
-  .loading {
-    display: none; margin: 16px 0; text-align: center;
+  .rec-btn {
+    width: 56px; height: 56px; border-radius: 50%; border: none;
+    background: var(--accent); color: white; font-size: 24px;
+    cursor: pointer; transition: all 0.3s;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 20px rgba(233,69,96,0.3);
   }
-  .loading.show { display: block; }
-  .spinner {
-    width: 32px; height: 32px; border: 3px solid rgba(255,255,255,0.2);
-    border-top-color: #e94560; border-radius: 50%;
-    animation: spin 0.8s linear infinite; margin: 0 auto 8px;
+  .rec-btn:hover { transform: scale(1.05); box-shadow: 0 6px 28px rgba(233,69,96,0.45); }
+  .rec-btn.recording {
+    background: #ff0000; box-shadow: 0 0 0 0 rgba(255,0,0,0.5);
+    animation: recPulse 1.5s infinite;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes recPulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(255,0,0,0.5); }
+    50% { box-shadow: 0 0 0 18px rgba(255,0,0,0); }
+  }
+  .rec-hint { font-size: 12px; color: var(--muted); }
+  .rec-timer { font-size: 18px; font-weight: 600; color: var(--accent); display: none; }
+  .rec-timer.show { display: block; }
 
-  /* 结果卡片 */
-  .result { display: none; }
-  .result.show { display: block; }
-
-  .emotion-badge {
-    display: inline-block; padding: 8px 20px; border-radius: 24px;
-    font-size: 24px; font-weight: bold; margin: 8px 0;
-    background: rgba(255,255,255,0.1);
+  .analyzing {
+    display: none; align-items: center; gap: 10px;
+    padding: 10px 20px; background: rgba(233,69,96,0.1);
+    border-radius: 12px; font-size: 13px;
+  }
+  .analyzing.show { display: flex; }
+  .dot-spinner { display: flex; gap: 4px; }
+  .dot-spinner span {
+    width: 6px; height: 6px; background: var(--accent); border-radius: 50%;
+    animation: dotBounce 1.2s infinite;
+  }
+  .dot-spinner span:nth-child(2) { animation-delay: 0.2s; }
+  .dot-spinner span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dotBounce {
+    0%,80%,100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
   }
 
-  .confidence-bar {
-    height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px;
-    margin: 4px 0; overflow: hidden;
+  /* 空状态 */
+  .empty-state {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px;
+    color: var(--muted);
   }
-  .confidence-bar .fill {
-    height: 100%; border-radius: 3px; transition: width 0.8s ease;
-  }
-
-  .text-result {
-    margin: 12px 0; padding: 12px; background: rgba(255,255,255,0.05);
-    border-radius: 8px; border-left: 3px solid #e94560;
-  }
-  .text-result .label { color: #888; font-size: 12px; }
-  .text-result .content { font-size: 18px; margin-top: 4px; }
-
-  .response-box {
-    margin: 12px 0; padding: 16px; background: linear-gradient(135deg, rgba(233,69,96,0.15), rgba(15,52,96,0.15));
-    border-radius: 12px; font-size: 16px; line-height: 1.6;
-    position: relative;
-  }
-  .response-box::before { content: '🤖'; position: absolute; top: -12px; left: 16px; font-size: 24px; }
-
-  .prob-list { margin-top: 12px; }
-  .prob-item {
-    display: flex; align-items: center; margin: 4px 0; font-size: 13px;
-  }
-  .prob-item .emoji { width: 32px; }
-  .prob-item .name { width: 60px; }
-  .prob-item .bar {
-    flex:1; height: 16px; background: rgba(255,255,255,0.1);
-    border-radius: 8px; margin: 0 8px; overflow: hidden;
-  }
-  .prob-item .bar div {
-    height: 100%; border-radius: 8px; transition: width 0.8s ease;
-  }
-  .prob-item .pct { width: 42px; text-align: right; }
+  .empty-state .big-icon { font-size: 64px; opacity: 0.5; }
+  .empty-state p { font-size: 16px; }
+  .empty-state .sub { font-size: 13px; opacity: 0.7; }
 </style>
 </head>
 <body>
-<div class="container">
-  <h1 class="title">🎙 语音情感感知助手</h1>
-
-  <!-- 录音区 -->
-  <div class="card">
-    <div class="record-area">
-      <button class="record-btn" id="recordBtn" onclick="toggleRecord()">
-        <span class="mic">🎤</span>
-      </button>
-      <div class="timer" id="timer">00:00</div>
-      <div class="record-hint" id="recordHint">点击开始录音，说完话后再点击停止</div>
+<!-- 侧边栏 -->
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <h2>🎙 情感感知助手</h2>
+    <p>Wav2Vec2 + Whisper</p>
+  </div>
+  <div class="emotion-stats">
+    <h3>情感分布</h3>
+    <div id="emotionStats">
+      <div class="stat-row"><span class="emoji">😊</span><span class="name">happy</span><div class="stat-bar"><div style="width:0%;background:#2ecc71"></div></div><span class="count">0</span></div>
+      <div class="stat-row"><span class="emoji">😢</span><span class="name">sad</span><div class="stat-bar"><div style="width:0%;background:#3498db"></div></div><span class="count">0</span></div>
+      <div class="stat-row"><span class="emoji">😠</span><span class="name">angry</span><div class="stat-bar"><div style="width:0%;background:#e74c3c"></div></div><span class="count">0</span></div>
+      <div class="stat-row"><span class="emoji">😨</span><span class="name">fear</span><div class="stat-bar"><div style="width:0%;background:#f39c12"></div></div><span class="count">0</span></div>
+      <div class="stat-row"><span class="emoji">🤢</span><span class="name">disgust</span><div class="stat-bar"><div style="width:0%;background:#8e44ad"></div></div><span class="count">0</span></div>
+      <div class="stat-row"><span class="emoji">😐</span><span class="name">neutral</span><div class="stat-bar"><div style="width:0%;background:#95a5a6"></div></div><span class="count">0</span></div>
     </div>
+  </div>
+  <div class="history-list" id="historyList">
+    <div style="text-align:center;color:var(--muted);padding:20px;font-size:12px;">暂无记录</div>
+  </div>
+</aside>
 
-    <div class="loading" id="loading">
-      <div class="spinner"></div>
+<!-- 主区域 -->
+<main class="main">
+  <div class="topbar">
+    <h1>💬 对话</h1>
+    <span class="badge">● 在线</span>
+  </div>
+
+  <div class="chat" id="chatArea">
+    <div class="empty-state" id="emptyState">
+      <div class="big-icon">🎤</div>
+      <p>开始语音对话</p>
+      <p class="sub">点击下方按钮录音，我会识别你的情感并回复你</p>
+    </div>
+  </div>
+
+  <div class="recorder">
+    <canvas class="waveform-canvas" id="waveform" width="600" height="56"></canvas>
+    <div class="rec-timer" id="recTimer">00:00</div>
+    <button class="rec-btn" id="recBtn" onclick="toggleRecord()">🎤</button>
+    <div class="rec-hint" id="recHint">点击开始录音，再点结束</div>
+    <div class="analyzing" id="analyzingBar">
+      <div class="dot-spinner"><span></span><span></span><span></span></div>
       <span>正在分析你的语音...</span>
     </div>
   </div>
-
-  <!-- 结果区 -->
-  <div class="card result" id="resultCard">
-    <div style="text-align:center;">
-      <div class="emotion-badge" id="emotionBadge"></div>
-      <div style="font-size:14px;color:#888;margin-top:4px;">
-        置信度: <strong id="confidenceText">0%</strong>
-      </div>
-    </div>
-
-    <div class="text-result" id="textResult">
-      <div class="label">📝 你说的内容:</div>
-      <div class="content" id="textContent"></div>
-    </div>
-
-    <div class="response-box" id="responseBox"></div>
-
-    <div class="prob-list" id="probList"></div>
-  </div>
-</div>
+</main>
 
 <script>
-let mediaRecorder, audioChunks = [], startTime, timerInterval;
-let audioContext = null;
+// ===== 全局状态 =====
+let audioCtx = null;
+let pcmChunks = [];
+let isRecording = false;
+let recStart = 0;
+let timerId = null;
+let analyser = null;
+let animFrame = null;
+let history = [];
+const emotionCounts = {};
 
-function toggleRecord() {
-  if (mediaRecorder && mediaRecorder.state === 'recording') {
+// ===== 录音 =====
+async function toggleRecord() {
+  if (isRecording) {
     stopRecord();
   } else {
-    startRecord();
+    await startRecord();
   }
 }
 
 async function startRecord() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: {
-      sampleRate: 16000, channelCount: 1, echoCancellation: true
-    }});
-    audioContext = new AudioContext({ sampleRate: 16000 });
-    const source = audioContext.createMediaStreamSource(stream);
-    const processor = audioContext.createScriptProcessor(4096, 1, 1);
-    const dest = audioContext.createMediaStreamDestination();
-
-    source.connect(processor);
-    processor.connect(dest);
-    processor.connect(audioContext.destination);
-
-    // 使用 MediaRecorder 录制
-    mediaRecorder = new MediaRecorder(dest.stream, {
-      mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus' : 'audio/webm'
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true }
     });
-    audioChunks = [];
+    audioCtx = new AudioContext({ sampleRate: 16000 });
+    const source = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    source.connect(analyser);
 
-    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
-    mediaRecorder.onstop = async () => {
-      processor.disconnect();
-      source.disconnect();
-      stream.getTracks().forEach(t => t.stop());
-      if (audioContext) audioContext.close();
-
-      const blob = new Blob(audioChunks, { type: 'audio/webm' });
-      await processAudio(blob);
+    // 用 ScriptProcessorNode 捕获 PCM
+    const processor = audioCtx.createScriptProcessor(2048, 1, 1);
+    pcmChunks = [];
+    processor.onaudioprocess = (e) => {
+      if (!isRecording) return;
+      const data = e.inputBuffer.getChannelData(0);
+      pcmChunks.push(new Float32Array(data));
     };
+    source.connect(processor);
+    processor.connect(audioCtx.destination);
 
-    mediaRecorder.start();
-    startTime = Date.now();
-    document.getElementById('recordBtn').classList.add('recording');
-    document.getElementById('recordHint').textContent = '正在录音... 说完话后点击停止';
-    document.getElementById('timer').classList.add('show');
-    timerInterval = setInterval(updateTimer, 200);
-    document.getElementById('resultCard').classList.remove('show');
+    isRecording = true;
+    recStart = Date.now();
+
+    document.getElementById('recBtn').classList.add('recording');
+    document.getElementById('recBtn').textContent = '⏹';
+    document.getElementById('recHint').textContent = '正在录音... 说完点击停止';
+    document.getElementById('recTimer').classList.add('show');
+    document.getElementById('waveform').classList.add('active');
+    timerId = setInterval(updateTimer, 200);
+    drawWaveform();
+
   } catch(e) {
     alert('无法访问麦克风: ' + e.message);
   }
 }
 
 function stopRecord() {
-  if (mediaRecorder) {
-    mediaRecorder.stop();
-    document.getElementById('recordBtn').classList.remove('recording');
-    document.getElementById('recordHint').textContent = '点击开始录音';
-    document.getElementById('timer').classList.remove('show');
-    clearInterval(timerInterval);
-    document.getElementById('loading').classList.add('show');
-    mediaRecorder = null;
+  isRecording = false;
+  clearInterval(timerId);
+  if (animFrame) cancelAnimationFrame(animFrame);
+
+  document.getElementById('recBtn').classList.remove('recording');
+  document.getElementById('recBtn').textContent = '🎤';
+  document.getElementById('recHint').textContent = '点击开始录音，再点结束';
+  document.getElementById('recTimer').classList.remove('show');
+  document.getElementById('waveform').classList.remove('active');
+
+  if (audioCtx) {
+    audioCtx.close().catch(()=>{});
+    audioCtx = null;
   }
+
+  // 合并 PCM
+  if (pcmChunks.length === 0) return;
+  const totalLen = pcmChunks.reduce((s,c)=>s+c.length, 0);
+  const audio = new Float32Array(totalLen);
+  let offset = 0;
+  for (const c of pcmChunks) { audio.set(c, offset); offset += c.length; }
+  pcmChunks = [];
+
+  sendForAnalysis(audio);
 }
 
 function updateTimer() {
-  const elapsed = Math.floor((Date.now() - startTime) / 1000);
-  const m = Math.floor(elapsed/60).toString().padStart(2,'0');
-  const s = (elapsed%60).toString().padStart(2,'0');
-  document.getElementById('timer').textContent = `${m}:${s}`;
+  const s = Math.floor((Date.now() - recStart)/1000);
+  const m = Math.floor(s/60).toString().padStart(2,'0');
+  const ss = (s%60).toString().padStart(2,'0');
+  document.getElementById('recTimer').textContent = m+':'+ss;
 }
 
-async function processAudio(blob) {
-  // 转成 WAV base64
-  const arrayBuffer = await blob.arrayBuffer();
-  const audioCtx = new OfflineAudioContext(1, 1, 16000);
-  const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+function drawWaveform() {
+  if (!isRecording) return;
+  const canvas = document.getElementById('waveform');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width = canvas.offsetWidth * 2;
+  const H = canvas.height = 56;
 
-  // 重采样到 16kHz
-  const srcRate = audioBuffer.sampleRate;
-  const offline = new OfflineAudioContext(1, audioBuffer.duration * 16000, 16000);
-  const src = offline.createBufferSource();
-  src.buffer = audioBuffer;
-  src.connect(offline.destination);
-  src.start();
-  const resampled = await offline.startRendering();
+  const buf = new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteTimeDomainData(buf);
 
-  const pcm16 = new Int16Array(resampled.length);
-  for (let i = 0; i < resampled.length; i++) {
-    pcm16[i] = Math.max(-32768, Math.min(32767, resampled.getChannelData(0)[i] * 32767));
+  ctx.clearRect(0,0,W,H);
+  ctx.beginPath();
+  ctx.strokeStyle = '#e94560';
+  ctx.lineWidth = 2;
+  const slice = W / buf.length;
+  for (let i=0; i<buf.length; i++) {
+    const v = buf[i] / 128.0 - 1;
+    const y = (v * H * 0.4) + H/2;
+    i === 0 ? ctx.moveTo(i*slice, y) : ctx.lineTo(i*slice, y);
   }
+  ctx.stroke();
 
-  // WAV header + PCM
-  const wavBuffer = new ArrayBuffer(44 + pcm16.length * 2);
-  const view = new DataView(wavBuffer);
-  writeString(view, 0, 'RIFF');
-  view.setUint32(4, 36 + pcm16.length*2, true);
-  writeString(view, 8, 'WAVE');
-  writeString(view, 12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
-  view.setUint32(24, 16000, true);
-  view.setUint32(28, 16000*2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  writeString(view, 36, 'data');
-  view.setUint32(40, pcm16.length*2, true);
-  const wavView = new Int16Array(wavBuffer, 44);
-  wavView.set(pcm16);
+  animFrame = requestAnimationFrame(drawWaveform);
+}
 
-  const base64Str = btoa(String.fromCharCode(...new Uint8Array(wavBuffer)));
+// ===== 发送分析 =====
+async function sendForAnalysis(pcm) {
+  document.getElementById('analyzingBar').classList.add('show');
+  document.getElementById('recBtn').disabled = true;
 
-  // 发送到后端
+  const raw = pcm.buffer;
+
   try {
     const resp = await fetch('/api/analyze', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ audio: base64Str })
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: raw
     });
     const data = await resp.json();
+    if (data.error) throw new Error(data.error);
     showResult(data);
   } catch(e) {
-    alert('分析失败: ' + e.message);
+    addMessage('assistant', '⚠ 分析失败: ' + e.message, '😐', '#95a5a6');
   } finally {
-    document.getElementById('loading').classList.remove('show');
+    document.getElementById('analyzingBar').classList.remove('show');
+    document.getElementById('recBtn').disabled = false;
   }
 }
 
-function writeString(view, offset, str) {
-  for (let i = 0; i < str.length; i++) view.setUint8(offset+i, str.charCodeAt(i));
+// ===== 显示结果 =====
+function showResult(data) {
+  document.getElementById('emptyState')?.remove();
+
+  const emotion = data.emotion;
+  const text = data.text || '[未识别到语音]';
+
+  // 用户消息
+  addMessage('user', text, data.icon, data.color, data.confidence, emotion);
+
+  // 助手回复
+  addMessage('assistant', data.response, '🤖', '#fff');
+
+  // 更新历史
+  const time = new Date().toLocaleTimeString();
+  history.unshift({ emotion, text, time, icon: data.icon, color: data.color });
+  emotionCounts[emotion] = (emotionCounts[emotion] || 0) + 1;
+  updateSidebar();
 }
 
-function showResult(data) {
-  document.getElementById('emotionBadge').textContent =
-    data.emotion_icon + ' ' + data.emotion;
-  document.getElementById('emotionBadge').style.background =
-    data.emotion_color + '22';
-  document.getElementById('emotionBadge').style.border =
-    '2px solid ' + data.emotion_color;
-  document.getElementById('confidenceText').textContent = data.confidence + '%';
-  document.getElementById('textContent').textContent = data.text;
-  document.getElementById('responseBox').textContent = data.response;
+function addMessage(role, text, icon, color, conf, emotion) {
+  const chat = document.getElementById('chatArea');
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
 
-  // 概率分布
-  const probs = data.probabilities;
-  const icons = { angry:'😠', disgust:'🤢', fear:'😨', happy:'😊', neutral:'😐', sad:'😢' };
-  const colors = { angry:'#e74c3c', disgust:'#8e44ad', fear:'#f39c12',
-                   happy:'#2ecc71', neutral:'#95a5a6', sad:'#3498db' };
-  let html = '';
-  for (const [e, v] of Object.entries(probs)) {
-    const pct = (v*100).toFixed(1);
-    html += `<div class="prob-item">
-      <span class="emoji">${icons[e]||''}</span>
-      <span class="name">${e}</span>
-      <div class="bar"><div style="width:${pct}%;background:${colors[e]||'#666'}"></div></div>
-      <span class="pct">${pct}%</span>
+  let meta = '';
+  if (role === 'user' && emotion) {
+    meta = `<div class="msg-meta">
+      <span class="emotion-tag" style="background:${color}22;color:${color};border:1px solid ${color}33">${icon} ${emotion}</span>
+      ${conf ? '<span>置信度 '+conf+'%</span>' : ''}
     </div>`;
   }
-  document.getElementById('probList').innerHTML = html;
-  document.getElementById('resultCard').classList.add('show');
+
+  div.innerHTML = `
+    <div class="msg-avatar">${role==='user' ? icon : '🤖'}</div>
+    <div class="msg-content">
+      <div class="msg-text">${text}</div>
+      ${meta}
+    </div>
+  `;
+
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+// ===== 侧边栏 =====
+function updateSidebar() {
+  const total = Object.values(emotionCounts).reduce((s,c)=>s+c, 0) || 1;
+  const stats = document.getElementById('emotionStats');
+  const rows = stats.querySelectorAll('.stat-row');
+
+  const order = ['happy','sad','angry','fear','disgust','neutral'];
+  const icons = {happy:'😊',sad:'😢',angry:'😠',fear:'😨',disgust:'🤢',neutral:'😐'};
+  const colors = {happy:'#2ecc71',sad:'#3498db',angry:'#e74c3c',fear:'#f39c12',disgust:'#8e44ad',neutral:'#95a5a6'};
+
+  order.forEach((e, i) => {
+    const cnt = emotionCounts[e] || 0;
+    const pct = (cnt/total*100).toFixed(0);
+    rows[i].querySelector('.emoji').textContent = icons[e];
+    rows[i].querySelector('.name').textContent = e;
+    rows[i].querySelector('.stat-bar div').style.width = pct+'%';
+    rows[i].querySelector('.stat-bar div').style.background = colors[e];
+    rows[i].querySelector('.count').textContent = cnt;
+  });
+
+  // 历史列表
+  const hist = document.getElementById('historyList');
+  hist.innerHTML = history.slice(0, 20).map(h => `
+    <div class="history-item">
+      <span class="h-emoji">${h.icon}</span>
+      <span class="h-text">${h.text}</span>
+      <span class="h-time">${h.time}</span>
+    </div>
+  `).join('') || '<div style="text-align:center;color:var(--muted);padding:20px;font-size:12px;">暂无记录</div>';
 }
 </script>
 </body>
